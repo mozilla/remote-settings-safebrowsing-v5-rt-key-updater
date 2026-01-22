@@ -1,4 +1,4 @@
-# Remote Settings Ingestion Cronjob Example
+# Remote Settings Ingestion Job Example
 
 Turn a source of data into records on Remote Settings.
 
@@ -6,7 +6,7 @@ Turn a source of data into records on Remote Settings.
 * Dry run
 * Dual sign-off
 * Lint
-* Github Action CI
+* Github Action CI and CD
 * Tests with `kinto_http` mocks
 * Sentry integration
 
@@ -75,3 +75,13 @@ $ AUTHORIZATION=$BEARER SERVER="http://remote-settings.mozilla.org/v1" python sc
 $ read -s PASSWD
 $ AUTHORIZATION=fxrelay-publisher:$PASSWD ENVIRONMENT=prod python script.py
 ```
+
+## Develop
+
+See available operations using:
+
+```
+make help
+```
+
+And see how unit and integration tests are run on Github Action CI.
