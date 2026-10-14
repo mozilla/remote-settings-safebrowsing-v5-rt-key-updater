@@ -29,7 +29,10 @@ SENTRY_ENV = os.getenv("SENTRY_ENV", ENVIRONMENT)
 
 COLLECTION_NAME = "sbv5-rt-key"
 # Google endpoint serving the OHTTP key config of the SafeBrowsing V5 real-time gateway.
-KEY_CONFIG_URL = "https://safebrowsingohttpgateway.googleapis.com/v1/ohttp/hpkekeyconfig"
+KEY_CONFIG_URL = os.getenv(
+    "KEY_CONFIG_URL",
+    "https://safebrowsingohttpgateway.googleapis.com/v1/ohttp/hpkekeyconfig",
+)
 KEY_CONFIG_CONTENT_TYPE = "application/ohttp-keys"
 REQUEST_TIMEOUT_SECONDS = 30
 # The collection holds a single record, updated in place when Google rotates the key.

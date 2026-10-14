@@ -102,6 +102,9 @@ $ AUTHORIZATION=<account>:$PASSWD ENVIRONMENT=prod uv run script.py
 
 Set `DRY_RUN=1` to print the requests without sending them.
 
+Set `KEY_CONFIG_URL` to fetch the key config from another endpoint than Google.
+CI uses it to serve a captured key config locally.
+
 ## Develop
 
 See available operations using:
