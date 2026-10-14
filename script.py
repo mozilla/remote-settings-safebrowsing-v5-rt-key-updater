@@ -1,3 +1,4 @@
+import base64
 import os
 import sys
 
@@ -21,25 +22,116 @@ SERVER = os.getenv(
         "prod": "https://remote-settings.mozilla.org/v1",
     }[ENVIRONMENT],
 )
-IS_DRY_RUN = os.getenv("DRY_RUN", "0") in "1yY"
+IS_DRY_RUN = os.getenv("DRY_RUN", "0") in ("1", "y", "Y")
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 SENTRY_ENV = os.getenv("SENTRY_ENV", ENVIRONMENT)
 
 
-COLLECTION_NAME = "product-integrity"
+COLLECTION_NAME = "sbv5-rt-key"
+# Google endpoint serving the OHTTP key config of the SafeBrowsing V5 real-time gateway.
+KEY_CONFIG_URL = "https://safebrowsingohttpgateway.googleapis.com/v1/ohttp/hpkekeyconfig"
+KEY_CONFIG_CONTENT_TYPE = "application/ohttp-keys"
+REQUEST_TIMEOUT_SECONDS = 30
+# The collection holds a single record, updated in place when Google rotates the key.
+RECORD_ID = "latest"
+
+# Public key length (Npk) per HPKE KEM ID, see RFC 9180 Section 7.1.
+KEM_PUBLIC_KEY_LENGTHS = {
+    0x0010: 65,  # DHKEM(P-256, HKDF-SHA256)
+    0x0011: 97,  # DHKEM(P-384, HKDF-SHA384)
+    0x0012: 133,  # DHKEM(P-521, HKDF-SHA512)
+    0x0020: 32,  # DHKEM(X25519, HKDF-SHA256)
+    0x0021: 56,  # DHKEM(X448, HKDF-SHA512)
+}
+
+
+class InvalidKeyConfig(ValueError):
+    """Raised when the fetched bytes are not a valid OHTTP Key Config."""
+
+
+def parse_key_config(data):
+    """
+    Parse a single OHTTP Key Config (RFC 9458 Section 3.1).
+
+    Key Config {
+      Key Identifier (8),
+      HPKE KEM ID (16),
+      HPKE Public Key (Npk * 8),
+      HPKE Symmetric Algorithms Length (16) = 4..65532,
+      HPKE Symmetric Algorithms (32) ...,
+    }
+
+    Raise ``InvalidKeyConfig`` if the bytes do not encode exactly one key config.
+    """
+    if len(data) < 3:
+        raise InvalidKeyConfig(f"too short ({len(data)} bytes) to hold a key id and KEM id")
+    key_id = data[0]
+    kem_id = int.from_bytes(data[1:3], "big")
+    try:
+        npk = KEM_PUBLIC_KEY_LENGTHS[kem_id]
+    except KeyError:
+        raise InvalidKeyConfig(f"unknown HPKE KEM id 0x{kem_id:04x}") from None
+
+    offset = 3
+    public_key = data[offset : offset + npk]
+    offset += npk
+    if len(data) < offset + 2:
+        raise InvalidKeyConfig("truncated before the symmetric algorithms length")
+    algs_length = int.from_bytes(data[offset : offset + 2], "big")
+    offset += 2
+    if algs_length < 4 or algs_length % 4 != 0:
+        raise InvalidKeyConfig(f"invalid symmetric algorithms length {algs_length}")
+    algs = data[offset : offset + algs_length]
+    offset += algs_length
+    if len(data) != offset:
+        raise InvalidKeyConfig(f"expected exactly {offset} bytes, got {len(data)}")
+
+    symmetric_algorithms = [
+        (int.from_bytes(algs[i : i + 2], "big"), int.from_bytes(algs[i + 2 : i + 4], "big"))
+        for i in range(0, algs_length, 4)
+    ]
+    return {
+        "key_id": key_id,
+        "kem_id": kem_id,
+        "public_key": public_key,
+        "symmetric_algorithms": symmetric_algorithms,
+    }
+
+
+def fetch_key_config():
+    """
+    Download the current key config from Google and return its raw bytes.
+
+    Note: despite the ``application/ohttp-keys`` content type, the body is a single
+    bare key config (RFC 9458 Section 3.1) without the length prefix that the media
+    type mandates (Section 3.2). This is what Firefox's OHTTP client consumes.
+    """
+    resp = requests.get(KEY_CONFIG_URL, timeout=REQUEST_TIMEOUT_SECONDS)
+    resp.raise_for_status()
+    content_type = resp.headers.get("Content-Type", "").split(";")[0].strip()
+    if content_type != KEY_CONFIG_CONTENT_TYPE:
+        raise InvalidKeyConfig(
+            f"unexpected content type {content_type!r}, expected {KEY_CONFIG_CONTENT_TYPE!r}"
+        )
+    return resp.content
 
 
 def get_source_records():
     """
-    Function that turns the source of truth data into Remote Settings records.
-    Write your own...
+    Turn the key config served by Google into the single Remote Settings record.
+
+    The raw bytes are validated and published verbatim (base64 encoded), so the
+    client can decode them and hand them straight to its OHTTP implementation.
+    The parsed key id is included to make review diffs readable.
     """
-    resp = requests.get("https://product-details.mozilla.org/1.0/firefox_versions.json")
-    details = resp.json()
+    raw = fetch_key_config()
+    parsed = parse_key_config(raw)
     return [
-        {"id": "release", "version": details["LATEST_FIREFOX_VERSION"]},
-        {"id": "beta", "version": details["FIREFOX_DEVEDITION"]},
-        {"id": "esr", "version": details["FIREFOX_ESR"]},
+        {
+            "id": RECORD_ID,
+            "key_config": base64.b64encode(raw).decode(),
+            "key_id": parsed["key_id"],
+        }
     ]
 
 
