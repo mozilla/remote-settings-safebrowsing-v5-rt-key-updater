@@ -78,7 +78,7 @@ jobs:
           curl --silent --fail --retry 5 --retry-connrefused --output /dev/null "${KEY_CONFIG_URL}"
       - name: Create collection
         run: |
-          curl -X PUT http://localhost:8888/v1/buckets/main-workspace/collections/sbv5-rt-key
+          curl -X PUT http://localhost:8888/v1/buckets/main-workspace/collections/safebrowsing-v5-rt-key
 
       - name: Run job from container
         run: |

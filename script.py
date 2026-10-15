@@ -27,7 +27,7 @@ SENTRY_DSN = os.getenv("SENTRY_DSN")
 SENTRY_ENV = os.getenv("SENTRY_ENV", ENVIRONMENT)
 
 
-COLLECTION_NAME = "sbv5-rt-key"
+COLLECTION_NAME = "safebrowsing-v5-rt-key"
 # Google endpoint serving the OHTTP key config of the SafeBrowsing V5 real-time gateway.
 KEY_CONFIG_URL = os.getenv(
     "KEY_CONFIG_URL",

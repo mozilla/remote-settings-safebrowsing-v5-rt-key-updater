@@ -1,5 +1,5 @@
 [project]
-name = "remote-settings-sbv5-rt-key-updater"
+name = "remote-settings-safebrowsing-v5-rt-key-updater"
 version = "0.1.0"
 description = "Publish the SafeBrowsing V5 real-time OHTTP key config from Google to Remote Settings"
 authors = [

@@ -1,8 +1,8 @@
 # Remote Settings SafeBrowsing V5 Real-Time Key Updater
 
 The updater fetches the latest SafeBrowsing V5 real-time OHTTP key config from
-the Google endpoint and publishes it to the `sbv5-rt-key` collection on Remote
-Settings.
+the Google endpoint and publishes it to the `safebrowsing-v5-rt-key` collection
+on Remote Settings.
 
 Source: https://safebrowsingohttpgateway.googleapis.com/v1/ohttp/hpkekeyconfig
 
@@ -47,7 +47,7 @@ $ docker run --rm --detach \
 Create the destination collection:
 
 ```
-$ curl -X PUT http://localhost:8888/v1/buckets/main-workspace/collections/sbv5-rt-key
+$ curl -X PUT http://localhost:8888/v1/buckets/main-workspace/collections/safebrowsing-v5-rt-key
 ```
 
 And run the script:
@@ -60,7 +60,7 @@ Fetch server info...✅
 ⚠️ Anonymous
 Fetch records from source of truth...✅
 Fetch current destination records...✅
-Batch #0: PUT /buckets/main-workspace/collections/sbv5-rt-key/records/latest - 201
+Batch #0: PUT /buckets/main-workspace/collections/safebrowsing-v5-rt-key/records/latest - 201
 Apply changes...1 operations ✅
 Request review...✅
 ```
